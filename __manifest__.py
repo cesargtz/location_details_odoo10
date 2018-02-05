@@ -33,7 +33,6 @@
     'data': [
         # 'security/ir.model.access.csv',
           'views/location_details.xml',
-          'views/warehouse_details.xml',
           'views/groups_location_view.xml',
 
     ],
