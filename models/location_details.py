@@ -281,7 +281,8 @@ class location_details(models.Model):
     @api.depends('truck_outlet_surplus')
     def _compute_outlet_surplus(self):
         if len(self.truck_outlet_surplus) > 0:
-            self.total_outlet_surplus = sum(record.raw_kilos for record in self.truck_outlet_surplus)
+            tons = sum(record.raw_kilos for record in self.truck_outlet_surplus)
+            self.total_outlet_surplus = tons / 1000
         else:
             self.total_outlet_surplus = 0
 
