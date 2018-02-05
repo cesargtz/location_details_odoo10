@@ -7,9 +7,12 @@
                 <field name="inherit_id" ref="stock.view_location_form"/>
                 <field name="arch" type="xml">
                     <field name="comment" position="after">
-                        <!-- <notebook>
+                        <notebook>
                             <page string="Details">
-                                <group col="4">
+                              <group>
+                                <field name="rest_discount"/>
+                              </group>
+                                <!-- <group col="4">
                                     <group col="4">
                                       <group col="2" string="Toneladas">
                                         <field name="total_tons_reception" string="Toneladas de Entrada"/>
@@ -34,9 +37,9 @@
                                         <field name="impure_kilos_discount" string="Por Impureza"/>
                                       </group>
                                     </group>
-                                </group>
+                                </group> -->
                             </page>
-                        </notebook> -->
+                        </notebook>
                     </field>
                 </field>
             </record>

@@ -5,6 +5,8 @@ from odoo import models, fields, api
 class location_details(models.Model):
     _inherit = 'stock.location'
 
+    rest_discount = fields.Boolean(default=False, string="Restar Descontado")
+
     truck_reception = fields.One2many('truck.reception','location_id')
     truck_outlet = fields.One2many('truck.outlet','location_id')
     wagon_outlet = fields.One2many('wagon.outlet','location_id')
@@ -243,9 +245,12 @@ class location_details(models.Model):
 
 
     @api.one
-    @api.depends('total_tons_reception','total_tons_outlet')
+    @api.depends('total_tons_reception','total_tons_outlet','discount')
     def _compute_total_available(self):
-        self.total_tons_available = self.total_tons_reception  - self.total_tons_outlet
+        if self.rest_discount == False:
+            self.total_tons_available = self.total_tons_reception  - self.total_tons_outlet
+        else:
+            self.total_tons_available = self.total_tons_reception  - self.total_tons_outlet -  self.discount
         # self.total_tons_available = (self.total_tons_reception + self.transfer_dest) - (self.total_tons_outlet + self.transfer_origin)
 
     @api.one
