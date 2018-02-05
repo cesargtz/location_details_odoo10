@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <openerp>
+        <data>
+            <record model="ir.ui.view" id="location_details_fields_view">
+                <field name="name">location.details.fields</field>
+                <field name="model">stock.location</field>
+                <field name="inherit_id" ref="stock.view_location_form"/>
+                <field name="arch" type="xml">
+                    <field name="comment" position="after">
+                        <!-- <notebook>
+                            <page string="Details">
+                                <group col="4">
+                                    <group col="4">
+                                      <group col="2" string="Toneladas">
+                                        <field name="total_tons_reception" string="Toneladas de Entrada"/>
+                                        <field name="total_tons_outlet" string="Toneladas de Salida"/>
+                                        <field name="total_tons_available" string="Toneladas disponibles"/>
+                                        <field name="existence" string="Existencia"/>
+                                      </group>
+                                      <group col="2" string="Transferencias">
+                                        <field name="transfer_dest" string="Transferencias Entrantes"/>
+                                        <field name="transfer_origin" string="Transferencias Salientes"/>
+                                      </group>
+                                      <group col="2" string="Calidad">
+                                        <field name="percentage_quality_reception" string="Humedad"/>
+                                        <field name="percentage_quality_damaged" string="Dano"/>
+                                        <field name="percentage_quality_impurity" string="Impureza"/>
+                                        <field name="percentage_quality_break" string="Quebrado"/>
+                                      </group>
+                                      <group col="2" string="Descontado(Kilos)">
+                                        <field name="wet_kilos_discount" string="Por Humedad"/>
+                                        <field name="damaged_kilos_discount" string="Por Dano"/>
+                                        <field name="broken_kilos_discount" string="Por Quebrado"/>
+                                        <field name="impure_kilos_discount" string="Por Impureza"/>
+                                      </group>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook> -->
+                    </field>
+                </field>
+            </record>
+        </data>
+    </openerp>

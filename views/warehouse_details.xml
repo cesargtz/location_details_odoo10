@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record model="ir.ui.view" id="warehouse_details_fields_view">
+        <field name="name">warehouse.details.fields</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="arch" type="xml">
+            <field name="code" position="after">
+                <field name="in_tons" string="Toneladas de entrada"/>
+                <field name="out_tons" string="Toneladas de salida"/>
+                <field name="available_tons" string="Toneladas disponibles"/>
+           </field>
+            <notebook position="inside">
+                <page string="Ubicaciones">
+                    <field name="locations"/>
+                </page>
+            </notebook>
+        </field>
+    </record>
+
+</odoo>

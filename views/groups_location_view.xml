@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <record model="ir.ui.view" id="groups_location_form_view">
+    <field name="name">groups.location.form</field>
+    <field name="model">groups.location</field>
+    <field name="arch" type="xml">
+      <form string="Grupos de ubicacion">
+        <sheet>
+          <group col="2">
+            <field name="name" string="Nombre"/>
+          </group>
+          <group>
+            <field name="location_in_ids" string="Ubicaciones"/>
+          </group>
+
+
+        </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="groups_location_tree_view">
+      <field name="name">groups.location.tree</field>
+      <field name="model">groups.location</field>
+      <field name="arch" type="xml">
+        <tree string="Grupos de ubicacion">
+            <field name="name" string="Nombre"/>
+        </tree>
+      </field>
+    </record>
+
+
+    <record model="ir.actions.act_window" id="groups_location_list_action">
+      <field name="name">Location Groups</field>
+      <field name="res_model">groups.location</field>
+      <field name="view_type">form</field>
+      <field name="view_mode">tree,form</field>
+      <field name="help" type="html">
+        <p class="oe_view_nocontent_create">Crea tu primer grupo de ubicaciones/</p>
+      </field>
+    </record>
+
+    <menuitem id="menu_action_groups_location_form" name="Grupos de ubicacion" parent="stock.menu_warehouse_config" action="groups_location_list_action" sequence="7"/>
+  </odoo>
