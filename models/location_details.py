@@ -5,8 +5,6 @@ from odoo import models, fields, api
 class location_details(models.Model):
     _inherit = 'stock.location'
 
-    rest_discount = fields.Boolean(default=False, string="Restar Descontado")
-
     truck_reception = fields.One2many('truck.reception','location_id')
     truck_outlet = fields.One2many('truck.outlet','location_id')
     wagon_outlet = fields.One2many('wagon.outlet','location_id')
