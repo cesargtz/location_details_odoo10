@@ -35,23 +35,56 @@ class location_details(models.Model):
     discount = fields.Float(compute="_compute_discount", store=False, readonly=True)
     existence = fields.Float(compute="_compute_existence", store=False, readonly=True)
 
+    def _wizard(self):
+        data = self.env['locationcalculate.wizard'].search([], order='id desc', limit=1)
+        data = {
+            'method_Istransfer': data[0].calculate_tranfer,
+            'calculate_Cleankilos': data[0].calculate_clean_kilos,
+        }
+        return data
+
     @api.one
     @api.depends('truck_reception')
     def _compute_total_reception(self):
         if len(self.truck_reception) > 0:
+            data = self._wizard()
             tons = 0
-            tons = sum(record.raw_kilos for record in self.truck_reception)
+            if data['method_Istransfer'] == False:
+                if data['calculate_Cleankilos'] == True:
+                    tons = sum(record.clean_kilos for record in self.truck_reception)
+                else:
+                    tons = sum(record.raw_kilos for record in self.truck_reception)
+            else:
+                for record in self.truck_reception:
+                    if record.stock_picking_id:
+                        if data['calculate_Cleankilos'] == True:
+                            tons += record.clean_kilos
+                        else:
+                            tons += record.raw_kilos
             self.total_tons_reception = tons / 1000
         else:
             self.total_tons_reception = 0
 
+
     @api.one
     @api.depends('truck_outlet','wagon_outlet')
     def _compute_total_outlet(self):
+        data = self._wizard()
+        tons_truck = 0
+        tons_wagon = 0
         if len(self.truck_outlet) > 0 or len(self.wagon_outlet) > 0:
-            tons_truck = sum(record.raw_kilos for record in self.truck_outlet)
-            tons_wagon = sum(record.raw_kilos for record in self.wagon_outlet)
-            self.total_tons_outlet = (tons_truck + tons_wagon) / 1000
+            if data['method_Istransfer'] == False:
+                tons_truck = sum(record.raw_kilos for record in self.truck_outlet)
+                tons_wagon = sum(record.raw_kilos for record in self.wagon_outlet)
+                self.total_tons_outlet = (tons_truck + tons_wagon) / 1000
+            else:
+                for record in self.truck_outlet:
+                    if record.stock_picking_id:
+                        tons_truck += record.raw_kilos
+                for record in self.wagon_outlet:
+                     if record.stock_picking_id:
+                         tons_wagon += record.raw_kilos
+                self.total_tons_outlet = (tons_truck + tons_wagon) / 1000
         else:
             self.total_tons_outlet = 0
 
@@ -61,7 +94,7 @@ class location_details(models.Model):
     def _compute_quality_reception(self):
         sum_total = 0
         total_tons = 0
-        if len(self.truck_reception) > 0:
+        if len(self.truck_reception) > 0 or len(self.truck_internal_dest) > 0:
             for record in self.truck_reception:
                 quality = record.humidity_rate
                 tons = record.raw_kilos / 1000
@@ -84,7 +117,7 @@ class location_details(models.Model):
             else:
                 self.percentage_quality_reception = 0
         else:
-            self.percentage_quality_reception = 1
+            self.percentage_quality_reception = 0
 
     @api.one
     @api.depends('truck_reception') #'truck_internal_dest'
@@ -92,8 +125,13 @@ class location_details(models.Model):
         # if len(self.truck_reception) > 0 or len(self.truck_internal_dest) > 0:
         if len(self.truck_reception) > 0:
             tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                tons += record.humid_kilos
+                if data['method_Istransfer'] == False:
+                    tons += record.humid_kilos
+                else:
+                    if record.stock_picking_id:
+                        tons += record.humid_kilos
             # for record in self.truck_internal_dest:
             #     if record.stock_destination:
             #         tons += record.humid_kilos_dest
@@ -108,13 +146,18 @@ class location_details(models.Model):
     def _compute_damaged_kilos(self):
         if len(self.truck_reception) > 0: #or len(self.truck_internal_dest) > 0:
             tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                tons += record.damaged_kilos
-            # for record in self.truck_internal_dest:
-            #     if record.stock_destination:
-            #         tons += record.damaged_kilos_dest
-            #     else:
-            #         tons += record.damaged_kilos
+                if data['method_Istransfer'] == False:
+                    tons += record.damaged_kilos
+                else:
+                    if record.stock_picking_id:
+                        tons += record.damaged_kilos
+                # for record in self.truck_internal_dest:
+                #     if record.stock_destination:
+                #         tons += record.damaged_kilos_dest
+                #     else:
+                #         tons += record.damaged_kilos
             self.damaged_kilos_discount = tons
         else:
             self.damaged_kilos_discount = 0
@@ -124,8 +167,13 @@ class location_details(models.Model):
     def _compute_impure_kilos(self):
         if len(self.truck_reception) > 0: #or len(self.truck_internal_dest) > 0:
             tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                tons += record.impure_kilos
+                if data['method_Istransfer'] == False:
+                    tons += record.impure_kilos
+                else:
+                    if record.stock_picking_id:
+                        tons += record.impure_kilos
             # for record in self.truck_internal_dest:
             #     if record.stock_destination:
             #         tons += record.impure_kilos_dest
@@ -140,8 +188,13 @@ class location_details(models.Model):
     def _compute_broken_kilos(self):
         if len(self.truck_reception) > 0: #or len(self.truck_internal_dest) > 0
             tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                tons += record.broken_kilos
+                if data['method_Istransfer'] == False:
+                    tons += record.broken_kilos
+                else:
+                    if record.stock_picking_id:
+                        tons += record.broken_kilos
             # for record in self.truck_internal_dest:
             #     if record.stock_destination:
             #         tons += record.broken_kilos_dest
@@ -247,22 +300,26 @@ class location_details(models.Model):
     @api.one
     @api.depends('total_tons_reception','total_tons_outlet','discount')
     def _compute_total_available(self):
-        if self.rest_discount == False:
-            self.total_tons_available = self.total_tons_reception  - self.total_tons_outlet
-        else:
-            self.total_tons_available = self.total_tons_reception  - self.total_tons_outlet -  self.discount
-        # self.total_tons_available = (self.total_tons_reception + self.transfer_dest) - (self.total_tons_outlet + self.transfer_origin)
+        self.total_tons_available = self.total_tons_reception  - self.total_tons_outlet
 
     @api.one
     @api.depends('truck_internal')
     def _compute_transfer_origin(self):
         if len(self.truck_internal) > 0:
+            data = self._wizard()
             tons_origin = 0
             for record in self.truck_internal:
-                if record.stock_destination:
-                    tons_origin += record.raw_kilos_dest / 1000
+                if data['method_Istransfer'] == False:
+                    if record.stock_destination:
+                        tons_origin += record.raw_kilos_dest / 1000
+                    else:
+                        tons_origin += record.raw_kilos / 1000
                 else:
-                    tons_origin += record.raw_kilos / 1000
+                    if record.stock_picking_id:
+                        if record.stock_destination:
+                            tons_origin += record.raw_kilos_dest / 1000
+                        else:
+                            tons_origin += record.raw_kilos / 1000
             self.transfer_origin = tons_origin
         else:
             self.transfer_origin = 0.0
@@ -271,12 +328,20 @@ class location_details(models.Model):
     @api.depends('truck_internal_dest')
     def _compute_transfer_dest(self):
          if len(self.truck_internal_dest) > 0:
+            data = self._wizard()
             tons_dest = 0
             for record in self.truck_internal_dest:
-                if record.stock_destination:
-                    tons_dest += record.raw_kilos_dest / 1000
+                if data['method_Istransfer'] == False:
+                    if record.stock_destination:
+                        tons_dest += record.raw_kilos_dest / 1000
+                    else:
+                        tons_dest += record.raw_kilos / 1000
                 else:
-                    tons_dest += record.raw_kilos / 1000
+                    if record.stock_picking_id:
+                        if record.stock_destination:
+                            tons_dest += record.raw_kilos_dest / 1000
+                        else:
+                            tons_dest += record.raw_kilos / 1000
             self.transfer_dest = tons_dest
          else:
             self.transfer_dest = 0.0
@@ -286,7 +351,14 @@ class location_details(models.Model):
     @api.depends('truck_outlet_surplus')
     def _compute_outlet_surplus(self):
         if len(self.truck_outlet_surplus) > 0:
-            tons = sum(record.raw_kilos for record in self.truck_outlet_surplus)
+            data = self._wizard()
+            tons = 0
+            if data['method_Istransfer'] == False:
+                tons = sum(record.raw_kilos for record in self.truck_outlet_surplus)
+            else:
+                for record in self.truck_outlet_surplus:
+                    if record.stock_picking_id:
+                        tons += record.raw_kilos
             self.total_outlet_surplus = tons / 1000
         else:
             self.total_outlet_surplus = 0
