@@ -13,8 +13,6 @@
           <group>
             <field name="location_in_ids" string="Ubicaciones"/>
           </group>
-
-
         </sheet>
         </form>
       </field>

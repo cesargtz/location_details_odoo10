@@ -38,9 +38,11 @@ class location_details(models.Model):
         data = {
             'method_Istransfer': data[0].calculate_tranfer,
             'calculate_Cleankilos': data[0].calculate_clean_kilos,
+            'date_start': data[0].date_start,
+            'date_end': data[0].date_end,
         }
         return data
-
+# if record.date >= data['date_start'] and record.date <= data['date_end']:
     @api.one
     @api.depends('truck_reception')
     def _compute_total_reception(self):
@@ -49,16 +51,21 @@ class location_details(models.Model):
             tons = 0
             if data['method_Istransfer'] == False:
                 if data['calculate_Cleankilos'] == True:
-                    tons = sum(record.clean_kilos for record in self.truck_reception)
+                    for record in self.truck_reception:
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            tons += record.clean_kilos
                 else:
-                    tons = sum(record.raw_kilos for record in self.truck_reception)
+                    for record in self.truck_reception:
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            tons += record.raw_kilos
             else:
                 for record in self.truck_reception:
                     if record.stock_picking_id:
-                        if data['calculate_Cleankilos'] == True:
-                            tons += record.clean_kilos
-                        else:
-                            tons += record.raw_kilos
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            if data['calculate_Cleankilos'] == True:
+                                tons += record.clean_kilos
+                            else:
+                                tons += record.raw_kilos
             self.total_tons_reception = tons / 1000
         else:
             self.total_tons_reception = 0
@@ -72,16 +79,22 @@ class location_details(models.Model):
         tons_wagon = 0
         if len(self.truck_outlet) > 0 or len(self.wagon_outlet) > 0:
             if data['method_Istransfer'] == False:
-                tons_truck = sum(record.raw_kilos for record in self.truck_outlet)
-                tons_wagon = sum(record.raw_kilos for record in self.wagon_outlet)
+                for record in self.truck_outlet:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        tons_truck += record.raw_kilos
+                for record in self.wagon_outlet:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        tons_wagon += record.raw_kilos
                 self.total_tons_outlet = (tons_truck + tons_wagon) / 1000
             else:
                 for record in self.truck_outlet:
                     if record.stock_picking_id:
-                        tons_truck += record.raw_kilos
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            tons_truck += record.raw_kilos
                 for record in self.wagon_outlet:
                      if record.stock_picking_id:
-                         tons_wagon += record.raw_kilos
+                         if record.date >= data['date_start'] and record.date <= data['date_end']:
+                             tons_wagon += record.raw_kilos
                 self.total_tons_outlet = (tons_truck + tons_wagon) / 1000
         else:
             self.total_tons_outlet = 0
@@ -92,24 +105,27 @@ class location_details(models.Model):
     def _compute_quality_reception(self):
         sum_total = 0
         total_tons = 0
+        data = self._wizard()
         if len(self.truck_reception) > 0 or len(self.truck_internal_dest) > 0:
             for record in self.truck_reception:
-                quality = record.humidity_rate
-                tons = record.raw_kilos / 1000
-                total_tons += tons
-                total = tons * quality
-                sum_total += total
-            for record in self.truck_internal_dest:
-                if record.humidity_rate_dest > 0:
-                    if record.stock_destination:
-                        quality = record.humidity_rate_dest
-                        tons = record.raw_kilos_dest / 1000
-                    else:
-                        quality = record.humidity_rate
-                        tons = record.raw_kilos / 1000
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    quality = record.humidity_rate
+                    tons = record.raw_kilos / 1000
                     total_tons += tons
                     total = tons * quality
                     sum_total += total
+            for record in self.truck_internal_dest:
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    if record.humidity_rate_dest > 0:
+                        if record.stock_destination:
+                            quality = record.humidity_rate_dest
+                            tons = record.raw_kilos_dest / 1000
+                        else:
+                            quality = record.humidity_rate
+                            tons = record.raw_kilos / 1000
+                        total_tons += tons
+                        total = tons * quality
+                        sum_total += total
             if sum_total > 0 and total_tons > 0:
                 self.percentage_quality_reception = float(sum_total / total_tons)
             else:
@@ -120,21 +136,18 @@ class location_details(models.Model):
     @api.one
     @api.depends('truck_reception') #'truck_internal_dest'
     def _compute_wet_kilos(self):
-        # if len(self.truck_reception) > 0 or len(self.truck_internal_dest) > 0:
+        data = self._wizard()
         if len(self.truck_reception) > 0:
             tons = 0
             data = self._wizard()
             for record in self.truck_reception:
                 if data['method_Istransfer'] == False:
-                    tons += record.humid_kilos
-                else:
-                    if record.stock_picking_id:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
                         tons += record.humid_kilos
-            # for record in self.truck_internal_dest:
-            #     if record.stock_destination:
-            #         tons += record.humid_kilos_dest
-            #     else:
-            #         tons += record.humid_kilos
+                else:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        if record.stock_picking_id:
+                            tons += record.humid_kilos
             self.wet_kilos_discount = tons
         else:
             self.wet_kilos_discount = 0
@@ -143,19 +156,16 @@ class location_details(models.Model):
     @api.depends('truck_reception') #,'truck_internal_dest'
     def _compute_damaged_kilos(self):
         if len(self.truck_reception) > 0: #or len(self.truck_internal_dest) > 0:
-            tons = 0
             data = self._wizard()
+            tons = 0
             for record in self.truck_reception:
                 if data['method_Istransfer'] == False:
-                    tons += record.damaged_kilos
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        tons += record.damaged_kilos
                 else:
                     if record.stock_picking_id:
-                        tons += record.damaged_kilos
-                # for record in self.truck_internal_dest:
-                #     if record.stock_destination:
-                #         tons += record.damaged_kilos_dest
-                #     else:
-                #         tons += record.damaged_kilos
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            tons += record.damaged_kilos
             self.damaged_kilos_discount = tons
         else:
             self.damaged_kilos_discount = 0
@@ -168,15 +178,12 @@ class location_details(models.Model):
             data = self._wizard()
             for record in self.truck_reception:
                 if data['method_Istransfer'] == False:
-                    tons += record.impure_kilos
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        tons += record.impure_kilos
                 else:
                     if record.stock_picking_id:
-                        tons += record.impure_kilos
-            # for record in self.truck_internal_dest:
-            #     if record.stock_destination:
-            #         tons += record.impure_kilos_dest
-            #     else:
-            #         tons += record.impure_kilos
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            tons += record.impure_kilos
             self.impure_kilos_discount = tons
         else:
             self.impure_kilos_discount = 0
@@ -189,15 +196,12 @@ class location_details(models.Model):
             data = self._wizard()
             for record in self.truck_reception:
                 if data['method_Istransfer'] == False:
-                    tons += record.broken_kilos
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        tons += record.broken_kilos
                 else:
                     if record.stock_picking_id:
-                        tons += record.broken_kilos
-            # for record in self.truck_internal_dest:
-            #     if record.stock_destination:
-            #         tons += record.broken_kilos_dest
-            #     else:
-            #         tons += record.broken_kilos
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            tons += record.broken_kilos
             self.broken_kilos_discount = tons
         else:
             self.broken_kilos_discount = 0
@@ -208,23 +212,26 @@ class location_details(models.Model):
         if len(self.truck_reception) > 0 or len(self.truck_internal_dest) > 0:
             sum_total = 0
             total_tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                quality = record.damage_rate
-                tons = record.raw_kilos / 1000
-                total_tons += tons
-                total = tons * quality
-                sum_total += total
-            for record in self.truck_internal_dest:
-                if record.damage_rate_dest > 0:
-                    if record.stock_destination:
-                        quality = record.damage_rate_dest
-                        tons = record.raw_kilos_dest / 1000
-                    else:
-                        quality = record.damage_rate
-                        tons = record.raw_kilos / 1000
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    quality = record.damage_rate
+                    tons = record.raw_kilos / 1000
                     total_tons += tons
                     total = tons * quality
                     sum_total += total
+            for record in self.truck_internal_dest:
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    if record.damage_rate_dest > 0:
+                        if record.stock_destination:
+                            quality = record.damage_rate_dest
+                            tons = record.raw_kilos_dest / 1000
+                        else:
+                            quality = record.damage_rate
+                            tons = record.raw_kilos / 1000
+                        total_tons += tons
+                        total = tons * quality
+                        sum_total += total
             if sum_total > 0 and total_tons > 0:
                 self.percentage_quality_damaged = float(sum_total / total_tons)
             else:
@@ -239,23 +246,26 @@ class location_details(models.Model):
         if len(self.truck_reception) > 0 or len(self.truck_internal_dest) > 0:
             sum_total = 0
             total_tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                quality = record.impurity_rate
-                tons = record.raw_kilos / 1000
-                total_tons += tons
-                total = tons * quality
-                sum_total += total
-            for record in self.truck_internal_dest:
-                if record.impurity_rate_dest > 0:
-                    if record.stock_destination:
-                        quality = record.impurity_rate_dest
-                        tons = record.raw_kilos_dest / 1000
-                    else:
-                        quality = record.impurity_rate
-                        tons = record.raw_kilos / 1000
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    quality = record.impurity_rate
+                    tons = record.raw_kilos / 1000
                     total_tons += tons
                     total = tons * quality
                     sum_total += total
+            for record in self.truck_internal_dest:
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    if record.impurity_rate_dest > 0:
+                        if record.stock_destination:
+                            quality = record.impurity_rate_dest
+                            tons = record.raw_kilos_dest / 1000
+                        else:
+                            quality = record.impurity_rate
+                            tons = record.raw_kilos / 1000
+                        total_tons += tons
+                        total = tons * quality
+                        sum_total += total
             if sum_total > 0 and total_tons > 0:
                 self.percentage_quality_impurity = float(sum_total / total_tons)
             else:
@@ -270,23 +280,26 @@ class location_details(models.Model):
         if len(self.truck_reception) > 0  or len(self.truck_internal_dest) > 0:
             sum_total = 0
             total_tons = 0
+            data = self._wizard()
             for record in self.truck_reception:
-                quality = record.break_rate
-                tons = record.raw_kilos / 1000
-                total_tons += tons
-                total = tons * quality
-                sum_total += total
-            for record in self.truck_internal_dest:
-                if record.break_rate_dest > 0:
-                    if record.stock_destination:
-                        quality = record.break_rate_dest
-                        tons = record.raw_kilos_dest / 1000
-                    else:
-                        quality = record.break_rate
-                        tons = record.raw_kilos / 1000
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    quality = record.break_rate
+                    tons = record.raw_kilos / 1000
                     total_tons += tons
                     total = tons * quality
                     sum_total += total
+            for record in self.truck_internal_dest:
+                if record.date >= data['date_start'] and record.date <= data['date_end']:
+                    if record.break_rate_dest > 0:
+                        if record.stock_destination:
+                            quality = record.break_rate_dest
+                            tons = record.raw_kilos_dest / 1000
+                        else:
+                            quality = record.break_rate
+                            tons = record.raw_kilos / 1000
+                        total_tons += tons
+                        total = tons * quality
+                        sum_total += total
             if sum_total > 0 and total_tons > 0:
                 self.percentage_quality_break = float(sum_total / total_tons)
             else:
@@ -308,16 +321,18 @@ class location_details(models.Model):
             tons_origin = 0
             for record in self.truck_internal:
                 if data['method_Istransfer'] == False:
-                    if record.stock_destination:
-                        tons_origin += record.raw_kilos_dest / 1000
-                    else:
-                        tons_origin += record.raw_kilos / 1000
-                else:
-                    if record.stock_picking_id:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
                         if record.stock_destination:
                             tons_origin += record.raw_kilos_dest / 1000
                         else:
                             tons_origin += record.raw_kilos / 1000
+                else:
+                    if record.stock_picking_id:
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            if record.stock_destination:
+                                tons_origin += record.raw_kilos_dest / 1000
+                            else:
+                                tons_origin += record.raw_kilos / 1000
             self.transfer_origin = tons_origin
         else:
             self.transfer_origin = 0.0
@@ -330,16 +345,18 @@ class location_details(models.Model):
             tons_dest = 0
             for record in self.truck_internal_dest:
                 if data['method_Istransfer'] == False:
-                    if record.stock_destination:
-                        tons_dest += record.raw_kilos_dest / 1000
-                    else:
-                        tons_dest += record.raw_kilos / 1000
-                else:
-                    if record.stock_picking_id:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
                         if record.stock_destination:
                             tons_dest += record.raw_kilos_dest / 1000
                         else:
                             tons_dest += record.raw_kilos / 1000
+                else:
+                    if record.stock_picking_id:
+                        if record.date >= data['date_start'] and record.date <= data['date_end']:
+                            if record.stock_destination:
+                                tons_dest += record.raw_kilos_dest / 1000
+                            else:
+                                tons_dest += record.raw_kilos / 1000
             self.transfer_dest = tons_dest
          else:
             self.transfer_dest = 0.0
@@ -352,11 +369,14 @@ class location_details(models.Model):
             data = self._wizard()
             tons = 0
             if data['method_Istransfer'] == False:
-                tons = sum(record.raw_kilos for record in self.truck_outlet_surplus)
+                for record in self.truck_outlet_surplus:
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        tons += record.raw_kilos
             else:
                 for record in self.truck_outlet_surplus:
-                    if record.stock_picking_id:
-                        tons += record.raw_kilos
+                    if record.date >= data['date_start'] and record.date <= data['date_end']:
+                        if record.stock_picking_id:
+                            tons += record.raw_kilos
             self.total_outlet_surplus = tons / 1000
         else:
             self.total_outlet_surplus = 0
